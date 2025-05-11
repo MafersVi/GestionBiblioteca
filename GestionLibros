@@ -1,0 +1,96 @@
+# Sistema de Gestión de Libros de Biblioteca
+# Este programa demuestra los patrones de diseño: Singleton, Decorador y Estrategia
+# Caso de uso: Sistema sencillo de biblioteca para gestionar libros, decorar información y notificar disponibilidad
+
+# --- Patrón Creacional: Singleton ---
+class GestorBiblioteca:
+    _instancia = None
+
+    def __new__(cls):
+        if cls._instancia is None:
+            print("Creando única instancia de GestorBiblioteca (Singleton)")
+            cls._instancia = super(GestorBiblioteca, cls).__new__(cls)
+            cls._instancia.libros = {}  # Diccionario {id_libro: info_libro}
+        return cls._instancia
+
+    def agregar_libro(self, id_libro, titulo, autor):
+        if id_libro not in self.libros:
+            self.libros[id_libro] = {'titulo': titulo, 'autor': autor, 'disponible': True}
+            print(f"Libro '{titulo}' de {autor} agregado con ID {id_libro}.")
+        else:
+            print("El ID del libro ya existe.")
+
+    def obtener_info_libro(self, id_libro):
+        return self.libros.get(id_libro, None)
+
+    def establecer_disponibilidad(self, id_libro, disponible):
+        if id_libro in self.libros:
+            self.libros[id_libro]['disponible'] = disponible
+            print(f"Disponibilidad del libro con ID {id_libro} establecida a {disponible}.")
+        else:
+            print("Libro no encontrado.")
+
+# --- Patrón Estructural: Decorador ---
+def decorador_info_libro(func):
+    def capa(*args, **kwargs):
+        info = func(*args, **kwargs)
+        if info:
+            estado = "Disponible" if info.get('disponible', False) else "No disponible"
+            return f"Título: {info['titulo']}, Autor: {info['autor']}, Estado: {estado}"
+        return "Libro no encontrado."
+    return capa
+
+# --- Patrón de Comportamiento: Estrategia ---
+class EstrategiaNotificacion:
+    def notificar(self, id_libro, info_libro):
+        pass
+
+class NotificacionEmail(EstrategiaNotificacion):
+    def notificar(self, id_libro, info_libro):
+        print(f"Correo enviado: El libro '{info_libro['titulo']}' (ID: {id_libro}) está disponible.")
+
+class NotificacionSMS(EstrategiaNotificacion):
+    def notificar(self, id_libro, info_libro):
+        print(f"SMS enviado: El libro '{info_libro['titulo']}' (ID: {id_libro}) está disponible.")
+
+class Biblioteca:
+    def __init__(self, estrategia_notificacion: EstrategiaNotificacion):
+        self.estrategia_notificacion = estrategia_notificacion
+
+    def cambiar_estrategia_notificacion(self, estrategia_notificacion: EstrategiaNotificacion):
+        self.estrategia_notificacion = estrategia_notificacion
+
+    @decorador_info_libro
+    def obtener_info_libro(self, id_libro, gestor):
+        return gestor.obtener_info_libro(id_libro)
+
+    def notificar_disponibilidad(self, id_libro, gestor):
+        info = gestor.obtener_info_libro(id_libro)
+        if info and info['disponible']:
+            self.estrategia_notificacion.notificar(id_libro, info)
+        else:
+            print(f"No se puede notificar: El libro con ID {id_libro} no está disponible o no existe.")
+
+# --- Ejecución Principal ---
+if __name__ == "__main__":
+    gestor = GestorBiblioteca()
+    gestor.agregar_libro(1, "El Gran Gatsby", "F. Scott Fitzgerald")
+    gestor.agregar_libro(2, "1984", "George Orwell")
+
+    biblioteca = Biblioteca(NotificacionEmail())
+
+    print("\nInformación de los libros:")
+    print(biblioteca.obtener_info_libro(1, gestor))
+    print(biblioteca.obtener_info_libro(2, gestor))
+
+    print("\nNotificando disponibilidad:")
+    biblioteca.notificar_disponibilidad(1, gestor)
+
+    biblioteca.cambiar_estrategia_notificacion(NotificacionSMS())
+    print("\nCambiando a notificación por SMS:")
+    biblioteca.notificar_disponibilidad(1, gestor)
+
+    gestor.establecer_disponibilidad(1, False)
+    print("\nInformación después del cambio de disponibilidad:")
+    print(biblioteca.obtener_info_libro(1, gestor))
+    biblioteca.notificar_disponibilidad(1, gestor)
